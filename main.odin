@@ -4,18 +4,28 @@ import rl "vendor:raylib"
 
 main :: proc() {
   rl.InitWindow(1280, 720, "Odin!")
+  rl.SetExitKey(.Q)
+
   player_pos := rl.Vector2 { 640, 320 }
   player_vel: rl.Vector2
   player_grounded: bool
+  player_flip: bool
+  player_run_texture := rl.LoadTexture("cat_run.png")
+  player_run_num_frames := 4
+  player_run_frame_timer: f32
+  player_run_current_frame: int
+  player_run_frame_length := f32(0.1)
 
   for !rl.WindowShouldClose() { // exit when window is, well, closed
     rl.BeginDrawing()           // start new frame
-    rl.ClearBackground(rl.BLUE) // make it blue
+    rl.ClearBackground({110, 184, 168, 255}) // make it blue
 
     if rl.IsKeyDown(.A) { // left
       player_vel.x = -400
+      player_flip = true
     } else if rl.IsKeyDown(.D) { // right
       player_vel.x = 400
+      player_flip = false
     } else { // stationary
       player_vel.x = 0
     }
@@ -38,7 +48,42 @@ main :: proc() {
       player_pos.x = f32(rl.GetScreenWidth()) - 64
     }
 
-    rl.DrawRectangleV(player_pos, {64, 64}, rl.GREEN)
+    player_run_width := f32(player_run_texture.width)
+    player_run_height := f32(player_run_texture.height)
+
+    player_run_frame_timer += rl.GetFrameTime()
+
+    if player_run_frame_timer > player_run_frame_length {
+      player_run_current_frame += 1
+      player_run_frame_timer = 0
+
+      if player_run_current_frame == player_run_num_frames {
+        player_run_current_frame = 0
+      }
+    }
+
+    // source area from image (which is a rectangle)
+    draw_player_source := rl.Rectangle {
+      x = f32(player_run_current_frame) * player_run_width / f32(player_run_num_frames),
+      y = 0,
+      width = player_run_width / f32(player_run_num_frames),
+      height = player_run_height
+    }
+
+    if player_flip {
+      draw_player_source.width = -draw_player_source.width
+    }
+
+    // to where the image will be placed (destionation)
+    draw_player_dest := rl.Rectangle {
+      x = player_pos.x,
+      y = player_pos.y,
+      // times 4 to scale time image
+      width = player_run_width * 4 / f32(player_run_num_frames),
+      height = player_run_height * 4
+    }
+
+    rl.DrawTexturePro(player_run_texture, draw_player_source, draw_player_dest, 0, 0, rl.WHITE)
     rl.EndDrawing() // and, show to user
   }
 
