@@ -19,14 +19,17 @@ Animation :: struct {
 update_animation :: proc(a: ^Animation) {
   a.frame_timer += rl.GetFrameTime()
 
+  // cycle through available frames by measuring the frame time
   if a.frame_timer > a.frame_length {
-    a.current_frame += 1
+    a.current_frame += 1 // go to next frame
     a.frame_timer = 0
 
     if a.current_frame == a.num_frames {
       a.current_frame = 0
     }
   }
+  // note that the 'frame_length' defines how quickly the texture will change
+  // (0.1 when running and 0.5 when idle)
 }
 
 draw_animation :: proc(a: Animation, pos: rl.Vector2, flip: bool) {
@@ -65,7 +68,7 @@ main :: proc() {
   rl.SetTargetFPS(60)
   rl.SetExitKey(.Q)
 
-  player_pos := rl.Vector2 { 640, 320 }
+  player_pos: rl.Vector2
   player_vel: rl.Vector2
   player_grounded: bool
   player_flip: bool
@@ -86,18 +89,25 @@ main :: proc() {
 
   current_animation := player_idle
 
+  platforms := []rl.Rectangle {
+    { -20, 20, 96, 16 },
+    { 90, -10, 96, 16 },
+  }
+
+  platform_texture := rl.LoadTexture("platform.png")
+
   for !rl.WindowShouldClose() { // exit when window is, well, closed
     rl.BeginDrawing()           // start new frame
-    rl.ClearBackground({110, 184, 168, 255}) // make it blue
+    rl.ClearBackground(rl.SKYBLUE) // make it blue
 
     if rl.IsKeyDown(.A) { // left
-      player_vel.x = -400
+      player_vel.x = -100
       player_flip = true
       if current_animation.name != .Run {
         current_animation = player_run
       }
     } else if rl.IsKeyDown(.D) { // right
-      player_vel.x = 400
+      player_vel.x = 100
       player_flip = false
       if current_animation.name != .Run {
         current_animation = player_run
@@ -109,22 +119,31 @@ main :: proc() {
       }
     }
 
-    player_vel.y += 2000 * rl.GetFrameTime() // "gravity"
+    player_vel.y += 1000 * rl.GetFrameTime() // "gravity"
+
     if player_grounded && rl.IsKeyPressed(.SPACE) {
-      player_vel.y = -600
-      player_grounded = false
+      player_vel.y = -300
     }
 
     player_pos += player_vel * rl.GetFrameTime()
 
-    // prevent player from disappearing from the window
-    if player_pos.y > f32(rl.GetScreenHeight()) - 64 {
-      player_pos.y = f32(rl.GetScreenHeight()) - 64
-      player_grounded = true
+    // a whole player collider can be either divided into a 'top' and 'bottom'
+    // collider, or with a 'whole' player collider
+    player_feet_collider := rl.Rectangle {
+      player_pos.x - 4,
+      player_pos.y - 4,
+      8,
+      4
     }
 
-    if player_pos.x > f32(rl.GetScreenWidth() - 64) {
-      player_pos.x = f32(rl.GetScreenWidth()) - 64
+    player_grounded = false
+
+    for platform in platforms {
+      if rl.CheckCollisionRecs(player_feet_collider, platform) && player_vel.y > 0 {
+        player_vel.y = 0
+        player_pos.y = platform.y
+        player_grounded = true
+      }
     }
 
     update_animation(&current_animation)
@@ -133,15 +152,23 @@ main :: proc() {
 
     camera := rl.Camera2D {
       zoom = screen_height / PixelWindowHeight,
+      // start camera at the middle of the screen
       offset = {
         f32(rl.GetScreenWidth() / 2),
         f32(screen_height / 2)
       },
-      target = player_pos
+      target = player_pos // <-- here! (centered)
     }
 
+    // this makes it seems like there's 'no movement' due to the camera always
+    // being centered on the player_pos
     rl.BeginMode2D(camera)
     draw_animation(current_animation, player_pos, player_flip)
+    for platform in platforms {
+      rl.DrawTextureV(platform_texture, {platform.x, platform.y}, rl.WHITE)
+    }
+    // debug player collision
+    // rl.DrawRectangleRec(player_feet_collider, {0, 255, 0, 100})
     rl.EndMode2D()
     rl.EndDrawing() // and, show to user
   }
