@@ -1,4 +1,4 @@
-package topics
+package pointers
 
 import "core:fmt"
 
@@ -26,7 +26,7 @@ main :: proc() {
 	// is accessing memory directly)
 	fmt.printf("%i\n", &x)
 
-	uninit: ^int
+	uninit: ^int // initialiezed to 'nil'
 	uninit^ = 2 // uh oh, segfault!
 }
 
@@ -53,5 +53,8 @@ This is where the L-value and R-value concepts come in:
   cannot be 'assignable', that is' 'addressable', and its thus usually on the
   right (though literals can only be just on the right, so they are just R-values
   in that case)
+
+Also also also, replacing whole 'struct's requires dereference just like with
+other variable such as 'int' ('val^ = {}')
 */
 
